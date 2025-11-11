@@ -22,3 +22,6 @@ phases:
       - echo "Pushing Docker image to ECR..."
       - docker push $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG
       - echo "Push complete."
+      - echo "Writing image tag $IMAGE_TAG to SSM Parameter Store..."
+      - aws ssm put-parameter --name "$SSM_PARAMETER_NAME" --value $IMAGE_TAG --type "String" --overwrite
+      - echo "SSM Parameter updated."
