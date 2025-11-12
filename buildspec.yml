@@ -11,7 +11,6 @@ phases:
       - echo "Build started on $(date)"
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:-latest}
-      
       - echo "Building Docker image..."
       - docker build -t $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG .
 
@@ -21,61 +20,36 @@ phases:
       - echo "Pushing Docker image to ECR..."
       - docker push $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG
       - echo "Push complete."
-      
       - echo "Writing image tag $IMAGE_TAG to SSM Parameter Store..."
       - aws ssm put-parameter --name "$SSM_PARAMETER_NAME" --value $IMAGE_TAG --type "String" --overwrite
       - echo "SSM Parameter updated."
-
       - echo "Retrieving Spacelift credentials from Secrets Manager..."
       - export SPACELIFT_CREDS=$(aws secretsmanager get-secret-value --secret-id $SPACELIFT_API_SECRET_ARN --query SecretString --output text)
       - export SPACELIFT_KEY_ID=$(echo $SPACELIFT_CREDS | jq -r .SPACELIFT_API_KEY_ID)
       - export SPACELIFT_KEY_SECRET=$(echo $SPACELIFT_CREDS | jq -r .SPACELIFT_API_KEY_SECRET)
-
       - echo "Authenticating with Spacelift to get JWT..."
-      - |
-        SPACELIFT_JWT_RESPONSE=$(curl -s \
-          -X POST \
-          -H "Content-Type: application/json" \
-          --data '{
-            "query": "mutation GetSpaceliftToken($id: ID!, $secret: String!) { apiKeyUser(id: $id, secret: $secret) { jwt } }",
-            "variables": {
-              "id": "'"$SPACELIFT_KEY_ID"'",
-              "secret": "'"$SPACELIFT_KEY_SECRET"'"
-            }
-          }' \
-          "https://$SPACELIFT_DOMAIN/graphql")
-      
+      - >
+        SPACELIFT_JWT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json"
+        --data '{"query":"mutation GetSpaceliftToken($id: ID!, $secret: String!) { apiKeyUser(id: $id, secret: $secret) { jwt } }","variables":{"id":"'"$SPACELIFT_KEY_ID"'","secret":"'"$SPACELIFT_KEY_SECRET"'"}}'
+        "https://$SPACELIFT_DOMAIN/graphql")
       - export SPACELIFT_JWT=$(echo $SPACELIFT_JWT_RESPONSE | jq -r .data.apiKeyUser.jwt)
-      
-      - |
+      - >
         if [ "$SPACELIFT_JWT" = "null" ] || [ -z "$SPACELIFT_JWT" ]; then
-          echo "Failed to get Spacelift JWT!"
-          echo "Response: $SPACELIFT_JWT_RESPONSE"
-          exit 1
+          echo "Failed to get Spacelift JWT!";
+          echo "Response: $SPACELIFT_JWT_RESPONSE";
+          exit 1;
         fi
-        
-      - echo "Successfully got JWT. Triggering stack: $SPACELIFT_ECS_STACK_ID"
-      - |
-        TRIGGER_RESPONSE=$(curl -s \
-          -X POST \
-          -H "Authorization: Bearer $SPACELIFT_JWT" \
-          -H "Content-Type: application/json" \
-          --data '{
-            "query": "mutation TriggerRun($stackId: ID!) { runTrigger(stack: $stackId) { id } }",
-            "variables": {
-              "stackId": "'"$SPACELIFT_ECS_STACK_ID"'"
-            }
-          }' \
-          "https://$SPACELIFT_DOMAIN/graphql")
-
-      - echo "Spacelift trigger response: $TRIGGER_RESPONSE"
-      
-      - |
-        RUN_ID=$(echo $TRIGGER_RESPONSE | jq -r .data.runTrigger.id)
+      - echo "Successfully got JWT. Triggering stack colon $SPACELIFT_ECS_STACK_ID"
+      - >
+        TRIGGER_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $SPACELIFT_JWT" -H "Content-Type: application/json"
+        --data '{"query":"mutation TriggerRun($stackId: ID!) { runTrigger(stack: $stackId) { id } }","variables":{"stackId":"'"$SPACELIFT_ECS_STACK_ID"'"}}'
+        "https://$SPACELIFT_DOMAIN/graphql")
+      - echo "Spacelift trigger response colon $TRIGGER_RESPONSE"
+      - >
+        RUN_ID=$(echo $TRIGGER_RESPONSE | jq -r .data.runTrigger.id);
         if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
-          echo "Failed to trigger Spacelift run!"
-          echo "Response: $TRIGGER_RESPONSE"
-          exit 1
+          echo "Failed to trigger Spacelift run!";
+          echo "Response: $TRIGGER_RESPONSE";
+          exit 1;
         fi
-        
-      - echo "Spacelift ECS stack triggered successfully. Run ID: $RUN_ID"
+      - echo "Spacelift ECS stack triggered successfully. Run ID colon $RUN_ID"
