@@ -31,7 +31,7 @@ phases:
       - >
         SPACELIFT_JWT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json"
         --data '{"query":"mutation GetSpaceliftToken($id: ID!, $secret: String!) { apiKeyUser(id: $id, secret: $secret) { jwt } }","variables":{"id":"'"$SPACELIFT_KEY_ID"'","secret":"'"$SPACELIFT_KEY_SECRET"'"}}'
-        "https://$SPACELIFT_DOMAIN/graphql")
+        "https://leon-test.app.spacelift.io/graphql")
       - export SPACELIFT_JWT=$(echo $SPACELIFT_JWT_RESPONSE | jq -r .data.apiKeyUser.jwt)
       - >
         if [ "$SPACELIFT_JWT" = "null" ] || [ -z "$SPACELIFT_JWT" ]; then
@@ -43,7 +43,7 @@ phases:
       - >
         TRIGGER_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $SPACELIFT_JWT" -H "Content-Type: application/json"
         --data '{"query":"mutation TriggerRun($stackId: ID!) { runTrigger(stack: $stackId) { id } }","variables":{"stackId":"'"$SPACELIFT_ECS_STACK_ID"'"}}'
-        "https://$SPACELIFT_DOMAIN/graphql")
+        "https://leon-test.app.spacelift.io/graphql")
       - echo "Spacelift trigger response colon $TRIGGER_RESPONSE"
       - >
         RUN_ID=$(echo $TRIGGER_RESPONSE | jq -r .data.runTrigger.id);
