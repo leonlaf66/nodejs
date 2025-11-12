@@ -25,3 +25,22 @@ phases:
       - echo "Writing image tag $IMAGE_TAG to SSM Parameter Store..."
       - aws ssm put-parameter --name "$SSM_PARAMETER_NAME" --value $IMAGE_TAG --type "String" --overwrite
       - echo "SSM Parameter updated."
+
+      - echo "Triggering Spacelift ECS deployment stack..."
+      - export SPACELIFT_CREDS=$(aws secretsmanager get-secret-value --secret-id $SPACELIFT_API_SECRET_ARN --query SecretString --output text)
+      - export SPACELIFT_KEY_ID=$(echo $SPACELIFT_CREDS | jq -r .SPACELIFT_API_KEY_ID)
+      - export SPACELIFT_KEY_SECRET=$(echo $SPACELIFT_CREDS | jq -r .SPACELIFT_API_KEY_SECRET)
+      
+      - |
+        curl -s \
+          -X POST \
+          -H "Authorization: Bearer $SPACELIFT_KEY_ID/$SPACELIFT_KEY_SECRET" \
+          -H "Content-Type: application/json" \
+          --data '{
+            "query": "mutation TriggerRun($stackId: ID!) { runTrigger(stackId: $stackId) { id } }",
+            "variables": {
+              "stackId": "'"$SPACELIFT_ECS_STACK_ID"'"
+            }
+          }' \
+          'https://leon-test.app.spacelift.io' # ！！！请替换成您的 Spacelift 域名
+      - echo "Spacelift ECS stack triggered."
