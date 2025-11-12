@@ -20,21 +20,21 @@ phases:
       - echo "Pushing Docker image to ECR..."
       - docker push $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG
       - echo "Push complete."
-      - echo "Writing image tag $IMAGE_TAG to SSM Parameter Store..."
+      - echo "Writing image tag to SSM..."
       - aws ssm put-parameter --name "$SSM_PARAMETER_NAME" --value $IMAGE_TAG --type "String" --overwrite
-      - echo "SSM Parameter updated."
-      - echo "Retrieving Spacelift credentials from Secrets Manager..."
+      - echo "SSM updated."
+      - echo "Getting Spacelift credentials..."
       - export SPACELIFT_CREDS=$(aws secretsmanager get-secret-value --secret-id $SPACELIFT_API_SECRET_ARN --query SecretString --output text)
       - export SPACELIFT_KEY_ID=$(echo $SPACELIFT_CREDS | jq -r .SPACELIFT_API_KEY_ID)
       - export SPACELIFT_KEY_SECRET=$(echo $SPACELIFT_CREDS | jq -r .SPACELIFT_API_KEY_SECRET)
-      - echo "Authenticating with Spacelift..."
-      - SPACELIFT_JWT_RESPONSE=$(curl -s -X POST -H "Content-Type application/json" --data '{"query":"mutation GetSpaceliftToken($id ID!, $secret String!) { apiKeyUser(id $id, secret $secret) { jwt } }","variables":{"id":"'"$SPACELIFT_KEY_ID"'","secret":"'"$SPACELIFT_KEY_SECRET"'"}}' "https://leon-test.app.spacelift.io/graphql")
-      - echo "JWT Response $SPACELIFT_JWT_RESPONSE"
+      - echo "Getting JWT token..."
+      - SPACELIFT_JWT_RESPONSE=$(curl -s -X POST -H "Content-Type:application/json" --data '{"query":"mutation($id:ID!,$secret:String!){apiKeyUser(id:$id,secret:$secret){jwt}}","variables":{"id":"'"$SPACELIFT_KEY_ID"'","secret":"'"$SPACELIFT_KEY_SECRET"'"}}' "https://leon-test.app.spacelift.io/graphql")
+      - echo "Response - $SPACELIFT_JWT_RESPONSE"
       - export SPACELIFT_JWT=$(echo $SPACELIFT_JWT_RESPONSE | jq -r .data.apiKeyUser.jwt)
-      - test "$SPACELIFT_JWT" != "null" && test -n "$SPACELIFT_JWT" || (echo "Failed to get JWT" && exit 1)
-      - echo "Triggering Spacelift stack..."
-      - TRIGGER_RESPONSE=$(curl -s -X POST -H "Authorization Bearer $SPACELIFT_JWT" -H "Content-Type application/json" --data '{"query":"mutation TriggerRun($stackId ID!) { runTrigger(stack $stackId) { id } }","variables":{"stackId":"ec-demo-dev"}}' "https://leon-test.app.spacelift.io/graphql")
-      - echo "Trigger Response $TRIGGER_RESPONSE"
+      - test "$SPACELIFT_JWT" != "null" && test -n "$SPACELIFT_JWT" || (echo "JWT failed" && exit 1)
+      - echo "Triggering stack..."
+      - TRIGGER_RESPONSE=$(curl -s -X POST -H "Authorization:Bearer $SPACELIFT_JWT" -H "Content-Type:application/json" --data '{"query":"mutation($stackId:ID!){runTrigger(stack:$stackId){id}}","variables":{"stackId":"ec-demo-dev"}}' "https://leon-test.app.spacelift.io/graphql")
+      - echo "Response - $TRIGGER_RESPONSE"
       - RUN_ID=$(echo $TRIGGER_RESPONSE | jq -r .data.runTrigger.id)
-      - test "$RUN_ID" != "null" && test -n "$RUN_ID" || (echo "Failed to trigger run" && exit 1)
-      - echo "Successfully triggered run $RUN_ID"
+      - test "$RUN_ID" != "null" && test -n "$RUN_ID" || (echo "Trigger failed" && exit 1)
+      - echo "Success! Run ID - $RUN_ID"
