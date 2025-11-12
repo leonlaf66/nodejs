@@ -9,6 +9,7 @@ COPY sample-app/ .
 
 ###Step 2
 FROM public.ecr.aws/docker/library/node:18-alpine
+RUN apk add --no-cache curl
 WORKDIR /app
 COPY --from=builder /app/package*.json ./
 RUN npm install --omit=dev
