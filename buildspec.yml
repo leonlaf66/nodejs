@@ -12,7 +12,10 @@ phases:
     commands:
       - echo "Build started on $(date)"
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=${COMMIT_HASH:-latest}
+      - RAW_BRANCH=${CODEBUILD_WEBHOOK_HEAD_REF:-unknown}
+      - BRANCH_NAME=$(echo $RAW_BRANCH | sed 's|refs/heads/||' | sed 's|/|-|g')
+      - IMAGE_TAG=${BRANCH_NAME}-${COMMIT_HASH}
+      - echo "Image tag will be - $IMAGE_TAG"
       - echo "Building Docker image..."
       - docker build -t $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG .
       - echo "Build complete - $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG"
