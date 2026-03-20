@@ -90,7 +90,7 @@ app.get('/', (req, res) => {
 <body>
 <header>
   <div class="icon">☸</div>
-  <div><h1>CA</h1><p class="sub">CA is the best ED-TECH COMPANY!!!</p></div>
+  <div><h1>AWS</h1><p class="sub">ECS demo</p></div>
   <span class="live"><span class="dot"></span>Running</span>
 </header>
 <main>
