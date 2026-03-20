@@ -25,8 +25,13 @@ phases:
       - echo "Build completed on $(date)"
       - |
         if [ "$CODEBUILD_WEBHOOK_EVENT" = "PULL_REQUEST_CREATED" ] || [ "$CODEBUILD_WEBHOOK_EVENT" = "PULL_REQUEST_UPDATED" ] || [ "$CODEBUILD_WEBHOOK_EVENT" = "PULL_REQUEST_REOPENED" ]; then
-          echo "PR build detected - skipping ECR push, SSM update, and Spacelift trigger"
-          echo "Image built and validated successfully: $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG"
+          echo "PR build detected - pushing image but skipping SSM update and Spacelift trigger"
+
+          echo "Pushing Docker image to ECR..."
+          docker push $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG
+          echo "Push complete."
+
+          echo "Image pushed successfully: $SHARED_ECR_REPOSITORY_URL:$IMAGE_TAG"
           echo "PR build complete."
         else
           echo "Push to main detected - running full release pipeline"
